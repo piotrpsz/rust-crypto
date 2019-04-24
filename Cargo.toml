@@ -1,0 +1,7 @@
+[package]
+name = "crypto"
+version = "0.1.0"
+authors = ["Piotr Pszczolkowski <piotr@beesoft.pl>"]
+
+[dependencies]
+rand = "0.6"
