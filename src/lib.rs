@@ -2,6 +2,7 @@ extern crate rand;
 
 
 pub mod blowfish;
+pub mod gost;
 
 pub fn padding(nbytes: usize) -> Vec<u8> {
    let mut s = Vec::with_capacity(nbytes);
