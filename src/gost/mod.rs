@@ -42,10 +42,10 @@ pub fn new(key: &[u8]) -> Result<Gost, &str> {
 	while i < 8 {
 		let mut idx = (i * 4) + 3;
 		let mut v = 0u32;
-		v = (v << 8) + key[idx] as u32; idx -= 1;
-		v = (v << 8) + key[idx] as u32; idx -= 1;
-		v = (v << 8) + key[idx] as u32; idx -= 1;
-		v = (v << 8) + key[idx] as u32;
+		v = (v << 8) + (key[idx] as u32); idx -= 1;
+		v = (v << 8) + (key[idx] as u32); idx -= 1;
+		v = (v << 8) + (key[idx] as u32); idx -= 1;
+		v = (v << 8) + (key[idx] as u32);
 		k[i] = v;
 		i += 1;
 	}
@@ -54,6 +54,150 @@ pub fn new(key: &[u8]) -> Result<Gost, &str> {
 }
 
 impl Gost {
+	
+	/// encrypts vector of bytes in ECB mode
+	pub fn encrypt_ecb(&self, input: &Vec<u8>) -> Result<Vec<u8>, &str> {
+		if input.len() == 0 { return Err("plain text size is 0") }
+				
+		let plain = {
+			let mut buffer = Vec::new();
+			buffer.extend(input);
+			let n = buffer.len() % BLOCK_SIZE;
+			if n != 0 {
+				buffer.extend(padding(BLOCK_SIZE -n));
+			}
+			buffer
+		};
+		let nbytes = plain.len();
+		
+		let mut cipher = Vec::with_capacity(nbytes);
+		cipher.resize(nbytes, 0);
+		
+		let mut i = 0usize;
+		while i < nbytes {
+			let x = self.bytes2block(&plain[i..]);
+			let x = self.encrypt(x);
+			self.block2bytes(x, &mut cipher[i..]);
+			i += BLOCK_SIZE;
+		}
+				
+		Ok(cipher)
+	}
+	
+	// decrypts vector of bytes in ECB mode
+	pub fn decrypt_cbc(&self, cipher: &Vec<u8>) -> Result<Vec<u8>, &str> {
+		let nbytes = cipher.len();
+		if nbytes == 0 { return Err("cipher text size is 0") }
+		
+		let mut plain = Vec::with_capacity(nbytes);
+		plain.resize(nbytes, 0);
+		
+		let mut i = 0usize;
+		while i < nbytes {
+			let x = self.bytes2block(&cipher[i..]);
+			let x = self.decrypt(x);
+			self.block2bytes(x, &mut plain[i..]);
+			i += BLOCK_SIZE;
+		}
+		
+		match padding_index(&plain) {
+			Some(idx) => Ok(plain[..idx].to_vec()),
+			_ => Ok(plain)
+		}
+	}
+
+	/// Encrypts one block (two u32 words)
+	pub fn encrypt(&self, x: (u32, u32)) -> (u32, u32) {
+		self.encrypt_2u32(x.0, x.1)
+	}
+	
+	#[inline]
+	fn encrypt_2u32(&self, mut xl: u32, mut xr: u32) -> (u32, u32) {
+		xr ^= self.f(xl + self.k[0]);
+		xl ^= self.f(xr + self.k[1]);
+		xr ^= self.f(xl + self.k[2]);
+		xl ^= self.f(xr + self.k[3]);
+		xr ^= self.f(xl + self.k[4]);
+		xl ^= self.f(xr + self.k[5]);
+		xr ^= self.f(xl + self.k[6]);
+		xl ^= self.f(xr + self.k[7]);
+
+		xr ^= self.f(xl + self.k[0]);
+		xl ^= self.f(xr + self.k[1]);
+		xr ^= self.f(xl + self.k[2]);
+		xl ^= self.f(xr + self.k[3]);
+		xr ^= self.f(xl + self.k[4]);
+		xl ^= self.f(xr + self.k[5]);
+		xr ^= self.f(xl + self.k[6]);
+		xl ^= self.f(xr + self.k[7]);
+
+		xr ^= self.f(xl + self.k[0]);
+		xl ^= self.f(xr + self.k[1]);
+		xr ^= self.f(xl + self.k[2]);
+		xl ^= self.f(xr + self.k[3]);
+		xr ^= self.f(xl + self.k[4]);
+		xl ^= self.f(xr + self.k[5]);
+		xr ^= self.f(xl + self.k[6]);
+		xl ^= self.f(xr + self.k[7]);
+
+		xr ^= self.f(xl + self.k[7]);
+		xl ^= self.f(xr + self.k[6]);
+		xr ^= self.f(xl + self.k[5]);
+		xl ^= self.f(xr + self.k[4]);
+		xr ^= self.f(xl + self.k[3]);
+		xl ^= self.f(xr + self.k[2]);
+		xr ^= self.f(xl + self.k[1]);
+		xl ^= self.f(xr + self.k[0]);
+
+		(xr, xl)
+	}
+	
+	/// Decrypts one block (two u32 words)
+	pub fn decrypt(&self, x: (u32, u32)) -> (u32, u32) {
+		self.decrypt_2u32(x.0, x.1)
+	}
+	
+	#[inline]
+	pub fn decrypt_2u32(&self, mut xl: u32, mut xr: u32) -> (u32, u32) {
+		xr ^= self.f(xl + self.k[0]);
+		xl ^= self.f(xr + self.k[1]);
+		xr ^= self.f(xl + self.k[2]);
+		xl ^= self.f(xr + self.k[3]);
+		xr ^= self.f(xl + self.k[4]);
+		xl ^= self.f(xr + self.k[5]);
+		xr ^= self.f(xl + self.k[6]);
+		xl ^= self.f(xr + self.k[7]);
+
+		xr ^= self.f(xl + self.k[7]);
+		xl ^= self.f(xr + self.k[6]);
+		xr ^= self.f(xl + self.k[5]);
+		xl ^= self.f(xr + self.k[4]);
+		xr ^= self.f(xl + self.k[3]);
+		xl ^= self.f(xr + self.k[2]);
+		xr ^= self.f(xl + self.k[1]);
+		xl ^= self.f(xr + self.k[0]);
+
+		xr ^= self.f(xl + self.k[7]);
+		xl ^= self.f(xr + self.k[6]);
+		xr ^= self.f(xl + self.k[5]);
+		xl ^= self.f(xr + self.k[4]);
+		xr ^= self.f(xl + self.k[3]);
+		xl ^= self.f(xr + self.k[2]);
+		xr ^= self.f(xl + self.k[1]);
+		xl ^= self.f(xr + self.k[0]);
+
+		xr ^= self.f(xl + self.k[7]);
+		xl ^= self.f(xr + self.k[6]);
+		xr ^= self.f(xl + self.k[5]);
+		xl ^= self.f(xr + self.k[4]);
+		xr ^= self.f(xl + self.k[3]);
+		xl ^= self.f(xr + self.k[2]);
+		xr ^= self.f(xl + self.k[1]);
+		xl ^= self.f(xr + self.k[0]);
+
+		(xr, xl)
+	}
+
 	fn f(&self, x: u32) -> u32 {
 		let i0 = (x >> 24) & 0xff;
 		let i1 = (x >> 16) & 0xff;
@@ -67,84 +211,97 @@ impl Gost {
 		let x = w0 | w1 | w2 | w3;
 		(x << 11) | (x >> (32 - 11))
 	}
-	
-	pub fn encrypt(&self, mut xl: u32, mut xr: u32) -> (u32, u32) {
-		xr ^= self.f(xl + self.k[0]);
-		xl ^= self.f(xr + self.k[1]);
-		xr ^= self.f(xl + self.k[2]);
-		xl ^= self.f(xr + self.k[3]);
-		xr ^= self.f(xl + self.k[4]);
-		xl ^= self.f(xr + self.k[5]);
-		xr ^= self.f(xl + self.k[6]);
-		xl ^= self.f(xr + self.k[7]);
 
-		xr ^= self.f(xl + self.k[0]);
-		xl ^= self.f(xr + self.k[1]);
-		xr ^= self.f(xl + self.k[2]);
-		xl ^= self.f(xr + self.k[3]);
-		xr ^= self.f(xl + self.k[4]);
-		xl ^= self.f(xr + self.k[5]);
-		xr ^= self.f(xl + self.k[6]);
-		xl ^= self.f(xr + self.k[7]);
+	/// Converts block of bytes to two u32 words
+   #[inline]
+   fn bytes2block(&self, data: &[u8]) -> (u32, u32) {
+      let xl = (data[3] as u32).wrapping_shl(24) |
+               (data[2] as u32).wrapping_shl(16) |
+               (data[1] as u32).wrapping_shl(8)  |
+               (data[0] as u32);
+      let xr = (data[7] as u32).wrapping_shl(24) |
+               (data[6] as u32).wrapping_shl(16) |
+               (data[5] as u32).wrapping_shl(8)  |
+               (data[4] as u32);
+		(xl, xr)
+	}
 
-		xr ^= self.f(xl + self.k[0]);
-		xl ^= self.f(xr + self.k[1]);
-		xr ^= self.f(xl + self.k[2]);
-		xl ^= self.f(xr + self.k[3]);
-		xr ^= self.f(xl + self.k[4]);
-		xl ^= self.f(xr + self.k[5]);
-		xr ^= self.f(xl + self.k[6]);
-		xl ^= self.f(xr + self.k[7]);
+	fn block2bytes(&self, x: (u32, u32), data: &mut [u8]) {
+      self.words2bytes(x.0, x.1, data);
 
-		xr ^= self.f(xl + self.k[7]);
-		xl ^= self.f(xr + self.k[6]);
-		xr ^= self.f(xl + self.k[5]);
-		xl ^= self.f(xr + self.k[4]);
-		xr ^= self.f(xl + self.k[3]);
-		xl ^= self.f(xr + self.k[2]);
-		xr ^= self.f(xl + self.k[1]);
-		xl ^= self.f(xr + self.k[0]);
+	}
+   #[inline]
+   fn words2bytes(&self, xl: u32, xr: u32, data: &mut [u8]) {
+      data[3] = xl.wrapping_shr(24) as u8;
+      data[2] = xl.wrapping_shr(16) as u8;
+      data[1] = xl.wrapping_shr(8)  as u8;
+      data[0] = xl as u8;
 
-		(xr, xl)
+      data[7] = xr.wrapping_shr(24) as u8;
+      data[6] = xr.wrapping_shr(16) as u8;
+      data[5] = xr.wrapping_shr(8)  as u8;
+      data[4] = xr as u8;
+   }
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+		
+	#[test]
+	fn text_block_00() {
+		let key = vec![0u8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0];
+
+		let gt = new(&key).unwrap();
+		let plain = (0u32, 0u32);
+		let expected = (0x37ef7123u32, 0x361b7184u32);
+
+		let encrypted = gt.encrypt(plain);
+		assert_eq!(encrypted, expected);
+		let decrypted = gt.decrypt(encrypted);
+		assert_eq!(decrypted, plain);		
 	}
 	
-	pub fn decrypt(&self, mut xl: u32, mut xr: u32) -> (u32, u32) {
-		xr ^= self.f(xl + self.k[0]);
-		xl ^= self.f(xr + self.k[1]);
-		xr ^= self.f(xl + self.k[2]);
-		xl ^= self.f(xr + self.k[3]);
-		xr ^= self.f(xl + self.k[4]);
-		xl ^= self.f(xr + self.k[5]);
-		xr ^= self.f(xl + self.k[6]);
-		xl ^= self.f(xr + self.k[7]);
+	#[test]
+	fn text_block_10() {
+		let key = vec![0u8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0];
 
-		xr ^= self.f(xl + self.k[7]);
-		xl ^= self.f(xr + self.k[6]);
-		xr ^= self.f(xl + self.k[5]);
-		xl ^= self.f(xr + self.k[4]);
-		xr ^= self.f(xl + self.k[3]);
-		xl ^= self.f(xr + self.k[2]);
-		xr ^= self.f(xl + self.k[1]);
-		xl ^= self.f(xr + self.k[0]);
+		let gt = new(&key).unwrap();
+		let plain = (1u32, 0u32);
+		let expected = (0x1159d751u32, 0xff9b91d2u32);
 
-		xr ^= self.f(xl + self.k[7]);
-		xl ^= self.f(xr + self.k[6]);
-		xr ^= self.f(xl + self.k[5]);
-		xl ^= self.f(xr + self.k[4]);
-		xr ^= self.f(xl + self.k[3]);
-		xl ^= self.f(xr + self.k[2]);
-		xr ^= self.f(xl + self.k[1]);
-		xl ^= self.f(xr + self.k[0]);
-
-		xr ^= self.f(xl + self.k[7]);
-		xl ^= self.f(xr + self.k[6]);
-		xr ^= self.f(xl + self.k[5]);
-		xl ^= self.f(xr + self.k[4]);
-		xr ^= self.f(xl + self.k[3]);
-		xl ^= self.f(xr + self.k[2]);
-		xr ^= self.f(xl + self.k[1]);
-		xl ^= self.f(xr + self.k[0]);
-
-		(xr, xl)
+		let encrypted = gt.encrypt(plain);
+		assert_eq!(encrypted, expected);
+		let decrypted = gt.decrypt(encrypted);
+		assert_eq!(decrypted, plain);				
 	}
+
+	#[test]
+	fn text_block_01() {
+		let key = vec![0u8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0];
+
+		let gt = new(&key).unwrap();
+		let plain = (0u32, 1u32);
+		let expected = (0xc79c4ef4u32, 0x27ac9149u32);
+
+		let encrypted = gt.encrypt(plain);
+		assert_eq!(encrypted, expected);
+		let decrypted = gt.decrypt(encrypted);
+		assert_eq!(decrypted, plain);				
+	}
+	
+	#[test]
+	fn text_block_ff() {
+		let key = vec![0u8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0];
+
+		let gt = new(&key).unwrap();
+		let plain = (0xffffffffu32, 0xffffffffu32);
+		let expected = (0xf9709623u32, 0x56ad8d77u32);
+
+		let encrypted = gt.encrypt(plain);
+		assert_eq!(encrypted, expected);
+		let decrypted = gt.decrypt(encrypted);
+		assert_eq!(decrypted, plain);				
+	}
+	
 }
