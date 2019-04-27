@@ -1,6 +1,9 @@
 use padding;
 use padding_index;
 use rand::Rng;
+use bytes2block;
+use block2bytes;
+use words2bytes;
 
 pub struct Blowfish {
     p: [u32; 18],
@@ -12,10 +15,10 @@ const BLOCK_SIZE: usize = 8;
 /// new creates new value of Blowfish type
 /// PARAMETERS:
 ///   key - bytes vector of the key
-pub fn new(key: &[u8]) -> Result<Blowfish, &str> {
+pub fn new(key: &[u8]) -> Result<Blowfish, String> {
    let key_len = key.len();
    if key_len < 4 || key_len > 56 {
-      return Err("invalid key size");
+      return Err("invalid key size".to_string());
    }
 
 
@@ -102,13 +105,13 @@ impl Blowfish {
 	
 	/// CBC : encrypts vector of bytes in CBC mode
 	/// using passed IV vector.
-	pub fn encrypt_cbc_iv(&self, input: &Vec<u8>, iv: &Vec<u8>) -> Result<Vec<u8>, &str> {
+	pub fn encrypt_cbc_iv(&self, input: &Vec<u8>, iv: &Vec<u8>) -> Result<Vec<u8>, String> {
 		// handle caller mistakes
 		if iv.len() != BLOCK_SIZE {
-			return Err("invalid IV size");
+			return Err("invalid IV size".to_string());
 		}
 		if input.len() == 0 {
-			return Err("nothing to encrypt")
+			return Err("nothing to encrypt".to_string());
 		}
 		
 		// create plain text buffer from 'input',
@@ -134,12 +137,12 @@ impl Blowfish {
 		};
 		
 		let mut i = 0usize;
-		let mut x = self.bytes2block(&cipher[..]); // get values from iv
+		let mut x = bytes2block(&cipher[..]); // get values from iv
 
 		while i < nbytes {
-			let t = self.bytes2block(&plain[i..]);
+			let t = bytes2block(&plain[i..]);
 			x = self.encrypt(t.0 ^ x.0, t.1 ^ x.1);
-			self.block2bytes(x, &mut cipher[(i + BLOCK_SIZE)..]);
+			block2bytes(x, &mut cipher[(i + BLOCK_SIZE)..]);
 			i += BLOCK_SIZE;
 		}
 		
@@ -147,7 +150,7 @@ impl Blowfish {
 		Ok(cipher)
 	}
 	
-	pub fn encrypt_cbc(&self, input: &Vec<u8>) -> Result<Vec<u8>, &str> {
+	pub fn encrypt_cbc(&self, input: &Vec<u8>) -> Result<Vec<u8>, String> {
 		self.encrypt_cbc_iv(input, {
 			let mut buffer = [0u8; BLOCK_SIZE];
 			rand::thread_rng().fill(&mut buffer);
@@ -156,21 +159,21 @@ impl Blowfish {
 	}
 	
 	/// CBC : decrypts vector of bytes in CBC mode
-	pub fn decrypt_cbc(&self, cipher: &Vec<u8>) -> Result<Vec<u8>, &str> {
+	pub fn decrypt_cbc(&self, cipher: &Vec<u8>) -> Result<Vec<u8>, String> {
  		let nbytes = cipher.len();
 		if nbytes <= BLOCK_SIZE {
-			return  Err("cipher data size is to short");
+			return  Err("cipher data size is to short".to_string());
 		}
 		let mut plain: Vec<u8> = Vec::new();
       plain.resize(nbytes - BLOCK_SIZE, 0);
 
- 		let mut p = self.bytes2block(&cipher[..]);
+ 		let mut p = bytes2block(&cipher[..]);
       let mut i = BLOCK_SIZE;
 		while i < nbytes {
-			let x = self.bytes2block(&cipher[i..]);
+			let x = bytes2block(&cipher[i..]);
  			let t = x;
 			let c = self.decrypt(x.0, x.1);
- 			self.words2bytes(c.0 ^ p.0, c.1 ^ p.1, &mut plain[(i - BLOCK_SIZE)..]);
+ 			words2bytes(c.0 ^ p.0, c.1 ^ p.1, &mut plain[(i - BLOCK_SIZE)..]);
 			p = t;
 			i += BLOCK_SIZE;
 		}
@@ -187,9 +190,9 @@ impl Blowfish {
 	}
 	
 	/// ECB : encrypts vector of bytes in ECB mode.
-	pub fn encrypt_ecb(&self, input: &Vec<u8>) -> Result<Vec<u8>, &str> {
+	pub fn encrypt_ecb(&self, input: &Vec<u8>) -> Result<Vec<u8>, String> {
 		if input.len() == 0 {
-			return Err("plain text size is 0")
+			return Err("plain text size is 0".to_string());
 		}
 		
 		let plain = {
@@ -208,19 +211,19 @@ impl Blowfish {
 		
 		let mut i = 0usize;
 		while i < nbytes {
-			let mut x = self.bytes2block(&plain[i..]);
+			let mut x = bytes2block(&plain[i..]);
 			x = self.encrypt(x.0, x.1);
-			self.block2bytes(x, &mut cipher[i..]);
+			block2bytes(x, &mut cipher[i..]);
 			i += BLOCK_SIZE;
 		}
 		Ok(cipher)
 	}
 	
 	/// ECB : decrypts vector of bytes in ECB mode
-	pub fn decrypt_ecb(&self, cipher: &Vec<u8>) -> Result<Vec<u8>, &str> {
+	pub fn decrypt_ecb(&self, cipher: &Vec<u8>) -> Result<Vec<u8>, String> {
 		let nbytes = cipher.len();
 		if nbytes == 0 {
-			return  Err("cipher text size is 0");
+			return  Err("cipher text size is 0".to_string());
 		}
 		
 		let mut plain = Vec::with_capacity(nbytes);
@@ -229,9 +232,9 @@ impl Blowfish {
 		let mut i = 0usize;
 		let mut x: (u32, u32);
 		while i < nbytes {
-			x = self.bytes2block(&cipher[i..]);
+			x = bytes2block(&cipher[i..]);
 			x = self.decrypt(x.0, x.1);
-			self.block2bytes(x, &mut plain[i..]);
+			block2bytes(x, &mut plain[i..]);
 			i += BLOCK_SIZE;
 		}
 		
@@ -331,38 +334,6 @@ impl Blowfish {
 
       (self.s[0][a].wrapping_add(self.s[1][b]) ^ self.s[2][c]).wrapping_add(self.s[3][d])
 	}
-
-	/// Converts block of bytes to two u32 words
-   #[inline]
-   fn bytes2block(&self, data: &[u8]) -> (u32, u32) {
-      let xl = (data[3] as u32).wrapping_shl(24) |
-               (data[2] as u32).wrapping_shl(16) |
-               (data[1] as u32).wrapping_shl(8)  |
-               (data[0] as u32);
-      let xr = (data[7] as u32).wrapping_shl(24) |
-               (data[6] as u32).wrapping_shl(16) |
-               (data[5] as u32).wrapping_shl(8)  |
-               (data[4] as u32);
-		(xl, xr)
-	}
-
-   #[inline]
-	fn block2bytes(&self, x: (u32, u32), data: &mut [u8]) {
-      self.words2bytes(x.0, x.1, data);
-
-	}
-   #[inline]
-   fn words2bytes(&self, xl: u32, xr: u32, data: &mut [u8]) {
-      data[3] = xl.wrapping_shr(24) as u8;
-      data[2] = xl.wrapping_shr(16) as u8;
-      data[1] = xl.wrapping_shr(8)  as u8;
-      data[0] = xl as u8;
-
-      data[7] = xr.wrapping_shr(24) as u8;
-      data[6] = xr.wrapping_shr(16) as u8;
-      data[5] = xr.wrapping_shr(8)  as u8;
-      data[4] = xr as u8;
-   }
 }
 
 #[cfg(test)]
