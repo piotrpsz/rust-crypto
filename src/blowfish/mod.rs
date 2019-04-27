@@ -1,9 +1,9 @@
 use padding;
 use padding_index;
-use rand::Rng;
 use bytes2block;
 use block2bytes;
 use words2bytes;
+use rand::Rng;
 
 pub struct Blowfish {
     p: [u32; 18],
