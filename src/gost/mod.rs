@@ -1,7 +1,10 @@
 use padding;
 use padding_index;
+use bytes2block;
+use block2bytes;
 
-const BLOCK_SIZE: usize = 8;    // bytes (2 x u32, 54 bit)
+const BLOCK_SIZE: usize = 8;  // 8 bytes, 2 u32, 54 bit
+const KEY_SIZE: usize = 32;	// 32 bytes, 8 u32, 256 bit
 const K8: [u8; 16] = [14,  4, 13,  1,  2, 15, 11,  8,  3, 10,  6, 12,  5,  9,  0,  7];
 const K7: [u8; 16] = [15,  1,  8, 14,  6, 11,  3,  4,  9,  7,  2, 13, 12,  0,  5, 10];
 const K6: [u8; 16] = [10,  0,  9, 14,  6,  3, 15,  5,  1, 13, 12,  7, 11,  4,  2,  8];
@@ -20,7 +23,11 @@ pub struct Gost {
     k21: [u8; 256],
 }
 
-pub fn new(key: &[u8]) -> Result<Gost, &str> {
+pub fn new(key: &[u8]) -> Result<Gost, String> {
+	if key.len() != KEY_SIZE {
+		return Err("invalid key size".to_string())
+	}
+	
 	let mut k = [0u32; 8];
    let mut k87 = [0u8; 256];
    let mut k65 = [0u8; 256];
@@ -56,8 +63,8 @@ pub fn new(key: &[u8]) -> Result<Gost, &str> {
 impl Gost {
 	
 	/// encrypts vector of bytes in ECB mode
-	pub fn encrypt_ecb(&self, input: &Vec<u8>) -> Result<Vec<u8>, &str> {
-		if input.len() == 0 { return Err("plain text size is 0") }
+	pub fn encrypt_ecb(&self, input: &Vec<u8>) -> Result<Vec<u8>, String> {
+		if input.len() == 0 { return Err("plain text size is 0".to_string()) }
 				
 		let plain = {
 			let mut buffer = Vec::new();
@@ -75,9 +82,9 @@ impl Gost {
 		
 		let mut i = 0usize;
 		while i < nbytes {
-			let x = self.bytes2block(&plain[i..]);
+			let x = bytes2block(&plain[i..]);
 			let x = self.encrypt(x);
-			self.block2bytes(x, &mut cipher[i..]);
+			block2bytes(x, &mut cipher[i..]);
 			i += BLOCK_SIZE;
 		}
 				
@@ -85,18 +92,18 @@ impl Gost {
 	}
 	
 	// decrypts vector of bytes in ECB mode
-	pub fn decrypt_cbc(&self, cipher: &Vec<u8>) -> Result<Vec<u8>, &str> {
+	pub fn decrypt_ecb(&self, cipher: &Vec<u8>) -> Result<Vec<u8>, String> {
 		let nbytes = cipher.len();
-		if nbytes == 0 { return Err("cipher text size is 0") }
+		if nbytes == 0 { return Err("cipher text size is 0".to_string()) }
 		
 		let mut plain = Vec::with_capacity(nbytes);
 		plain.resize(nbytes, 0);
 		
 		let mut i = 0usize;
 		while i < nbytes {
-			let x = self.bytes2block(&cipher[i..]);
+			let x = bytes2block(&cipher[i..]);
 			let x = self.decrypt(x);
-			self.block2bytes(x, &mut plain[i..]);
+			block2bytes(x, &mut plain[i..]);
 			i += BLOCK_SIZE;
 		}
 		
@@ -211,37 +218,6 @@ impl Gost {
 		let x = w0 | w1 | w2 | w3;
 		(x << 11) | (x >> (32 - 11))
 	}
-
-	/// Converts block of bytes to two u32 words
-   #[inline]
-   fn bytes2block(&self, data: &[u8]) -> (u32, u32) {
-      let xl = (data[3] as u32).wrapping_shl(24) |
-               (data[2] as u32).wrapping_shl(16) |
-               (data[1] as u32).wrapping_shl(8)  |
-               (data[0] as u32);
-      let xr = (data[7] as u32).wrapping_shl(24) |
-               (data[6] as u32).wrapping_shl(16) |
-               (data[5] as u32).wrapping_shl(8)  |
-               (data[4] as u32);
-		(xl, xr)
-	}
-
-	fn block2bytes(&self, x: (u32, u32), data: &mut [u8]) {
-      self.words2bytes(x.0, x.1, data);
-
-	}
-   #[inline]
-   fn words2bytes(&self, xl: u32, xr: u32, data: &mut [u8]) {
-      data[3] = xl.wrapping_shr(24) as u8;
-      data[2] = xl.wrapping_shr(16) as u8;
-      data[1] = xl.wrapping_shr(8)  as u8;
-      data[0] = xl as u8;
-
-      data[7] = xr.wrapping_shr(24) as u8;
-      data[6] = xr.wrapping_shr(16) as u8;
-      data[5] = xr.wrapping_shr(8)  as u8;
-      data[4] = xr as u8;
-   }
 }
 
 #[cfg(test)]
@@ -249,7 +225,7 @@ mod tests {
 	use super::*;
 		
 	#[test]
-	fn text_block_00() {
+	fn test_block_00() {
 		let key = vec![0u8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0];
 
 		let gt = new(&key).unwrap();
@@ -263,7 +239,7 @@ mod tests {
 	}
 	
 	#[test]
-	fn text_block_10() {
+	fn test_block_10() {
 		let key = vec![0u8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0];
 
 		let gt = new(&key).unwrap();
@@ -277,7 +253,7 @@ mod tests {
 	}
 
 	#[test]
-	fn text_block_01() {
+	fn test_block_01() {
 		let key = vec![0u8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0];
 
 		let gt = new(&key).unwrap();
@@ -291,7 +267,7 @@ mod tests {
 	}
 	
 	#[test]
-	fn text_block_ff() {
+	fn test_block_ff() {
 		let key = vec![0u8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0];
 
 		let gt = new(&key).unwrap();
@@ -303,5 +279,38 @@ mod tests {
 		let decrypted = gt.decrypt(encrypted);
 		assert_eq!(decrypted, plain);				
 	}
-	
+
+	#[test]
+	fn test_gost_ecb() {
+		let key = vec![0u8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0];
+		
+		let gt = match new(&key) {
+			Ok(x) => x,
+			Err(err) => panic!(err)
+		};
+		
+		let plain = "Artur, Błażej, Jolanta (23.03.1959) i Piotr (25.10.1959) Pszczółkowscy".as_bytes().to_vec();
+		let expected = vec![	0x5c, 0xc8, 0x5a, 0xb2, 0xab, 0xa8, 0x58, 0x98, 0x52, 0x33,
+									0x67, 0x6c, 0x4b, 0x60, 0x25, 0x6e, 0x22, 0x4d, 0x2e, 0xb7,
+									0x59, 0xe5, 0x63, 0x27, 0x2f, 0xaf, 0x4b, 0xab, 0x73, 0x4a,
+									0x9a, 0xe1, 0x7, 0x81, 0x63, 0x75, 0xe7, 0x21, 0x52, 0x4f,
+									0x1f, 0xd2, 0xc0, 0x1c, 0x71, 0xbc, 0xd, 0xa1, 0xc5, 0xfa,
+									0xff, 0xd5, 0xe4, 0x15, 0x62, 0x3, 0x35, 0xaa, 0x18, 0xc5,
+									0x2, 0x77, 0xbb, 0xb8, 0x87, 0x8e, 0x76, 0x28, 0xb, 0xfa,
+									0x9e, 0x61, 0x29, 0x88, 0xc7, 0x47, 0x8f, 0xb1, 0xda, 0x51];
+		
+		
+		let encrypted = match gt.encrypt_ecb(&plain) {
+			Ok(x) => x,
+			Err(err) => panic!(err)
+		};
+		assert_eq!(encrypted, expected);
+		
+		let decrypted = match gt.decrypt_ecb(&encrypted) {
+			Ok(x) => x,
+			Err(err) => panic!(err)
+		};
+		assert_eq!(decrypted, plain);
+		
+	}
 }
