@@ -3,6 +3,7 @@ extern crate rand;
 
 pub mod blowfish;
 pub mod gost;
+pub mod way3;
 
 
 /// Converts block of bytes to two u32 words
