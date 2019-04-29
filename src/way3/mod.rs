@@ -1,8 +1,8 @@
-// use padding;
-// use padding_index;
+use padding;
+use padding_index;
 
 const KEY_SIZE: usize = 12;
-// const BLOC_KSIZE: usize = 12;
+const BLOCK_SIZE: usize = 12;
 const NMBR: usize = 11;
 const ERCON: [u32; 12] = [0x0b0b, 0x1616, 0x2c2c, 0x5858, 0xb0b0, 0x7171, 0xe2e2, 0xd5d5, 0xbbbb, 0x6767, 0xcece, 0x8d8d]; 
 const DRCON: [u32; 12] = [0xb1b1, 0x7373, 0xe6e6, 0xdddd, 0xabab, 0x4747, 0x8e8e, 0x0d0d, 0x1a1a, 0x3434, 0x6868, 0xd0d0];
@@ -26,6 +26,56 @@ pub fn new(key: &[u8]) -> Result<Way3, String> {
 
 
 impl Way3 {
+	pub fn encrypt_ecb(&self, input: &Vec<u8>) -> Result<Vec<u8>, String> {
+		if input.len() == 0 { return Err("plain text size is 0".to_string()) }
+		
+		let plain = {
+			let mut buffer = Vec::new();
+			buffer.extend(input);
+			let n = buffer.len() % BLOCK_SIZE;
+			if n != 0 {
+				buffer.extend(padding(BLOCK_SIZE - n));
+			}
+			buffer
+		};
+		let nbytes = plain.len();
+		
+		let mut cipher = Vec::with_capacity(nbytes);
+		cipher.resize(nbytes, 0);
+		
+		let mut i = 0usize;
+		while i < nbytes {
+			let p = bytes3block(&plain[i..]);
+			let c = self.encrypt(p);
+			block3bytes(c, &mut cipher[i..]);
+			i += BLOCK_SIZE;
+		}
+		
+		Ok(cipher)
+	}
+	
+	pub fn decrypt_ecb(&self, cipher: &Vec<u8>) -> Result<Vec<u8>, String> {
+		let nbytes = cipher.len();
+		if nbytes == 0 { return Err("cipher text size is 0".to_string()) }
+		if (nbytes % BLOCK_SIZE) != 0 { return Err("invalid cipher text size".to_string()) }
+		
+		let mut plain = Vec::with_capacity(nbytes);
+		plain.resize(nbytes, 0);
+		
+		let mut i = 0usize;
+		while i < nbytes {
+			let c = bytes3block(&cipher[i..]);
+			let p = self.decrypt(c);
+			block3bytes(p, &mut plain[i..]);
+			i += BLOCK_SIZE;
+		}
+		
+		match padding_index(&plain) {
+			Some(idx) => Ok(plain[..idx].to_vec()),
+			_ => Ok(plain)
+		}
+	}
+	
 	pub fn encrypt(&self, mut x: (u32, u32, u32)) -> (u32, u32, u32) {
 		let mut i = 0usize;
 		
@@ -115,6 +165,25 @@ mod tests {
 		assert_eq!(d, x);
 	}
 	
+	#[test]
+	fn test_ecb() {
+		let key = vec![0x5eu8, 0x5b, 0xf0, 0xd2, 0x38, 0x41, 0x14, 0xd6, 0xcd, 0x20, 0xb9, 0xca];
+		let w3 = new(&key).unwrap();
+		
+		let plain = "Artur, Błazej, Jolanta, Piotr Pszczółkowski".as_bytes().to_vec();
+		
+		let encrypted = match w3.encrypt_ecb(&plain) {
+			Ok(x) => x,
+			Err(err) => panic!(err)
+		};
+
+		let decrypted = match w3.decrypt_ecb(&encrypted) {
+			Ok(x) => x,
+			Err(err) => panic!(err)
+		};
+		assert_eq!(decrypted, plain);	
+		
+	}
 }
 
 fn mu(mut x: (u32, u32, u32)) -> (u32, u32, u32) {
