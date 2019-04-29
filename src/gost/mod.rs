@@ -204,43 +204,43 @@ impl Gost {
 		self.encrypt_2u32(x.0, x.1)
 	}
 	
-	#[inline]
+	// #[inline]
 	fn encrypt_2u32(&self, mut xl: u32, mut xr: u32) -> (u32, u32) {
-		xr ^= self.f(xl + self.k[0]);
-		xl ^= self.f(xr + self.k[1]);
-		xr ^= self.f(xl + self.k[2]);
-		xl ^= self.f(xr + self.k[3]);
-		xr ^= self.f(xl + self.k[4]);
-		xl ^= self.f(xr + self.k[5]);
-		xr ^= self.f(xl + self.k[6]);
-		xl ^= self.f(xr + self.k[7]);
+		xr ^= self.f(xl.wrapping_add(self.k[0]));
+		xl ^= self.f(xr.wrapping_add(self.k[1]));
+		xr ^= self.f(xl.wrapping_add(self.k[2]));
+		xl ^= self.f(xr.wrapping_add(self.k[3]));
+		xr ^= self.f(xl.wrapping_add(self.k[4]));
+		xl ^= self.f(xr.wrapping_add(self.k[5]));
+		xr ^= self.f(xl.wrapping_add(self.k[6]));
+		xl ^= self.f(xr.wrapping_add(self.k[7]));
 
-		xr ^= self.f(xl + self.k[0]);
-		xl ^= self.f(xr + self.k[1]);
-		xr ^= self.f(xl + self.k[2]);
-		xl ^= self.f(xr + self.k[3]);
-		xr ^= self.f(xl + self.k[4]);
-		xl ^= self.f(xr + self.k[5]);
-		xr ^= self.f(xl + self.k[6]);
-		xl ^= self.f(xr + self.k[7]);
+		xr ^= self.f(xl.wrapping_add(self.k[0]));
+		xl ^= self.f(xr.wrapping_add(self.k[1]));
+		xr ^= self.f(xl.wrapping_add(self.k[2]));
+		xl ^= self.f(xr.wrapping_add(self.k[3]));
+		xr ^= self.f(xl.wrapping_add(self.k[4]));
+		xl ^= self.f(xr.wrapping_add(self.k[5]));
+		xr ^= self.f(xl.wrapping_add(self.k[6]));
+		xl ^= self.f(xr.wrapping_add(self.k[7]));
 
-		xr ^= self.f(xl + self.k[0]);
-		xl ^= self.f(xr + self.k[1]);
-		xr ^= self.f(xl + self.k[2]);
-		xl ^= self.f(xr + self.k[3]);
-		xr ^= self.f(xl + self.k[4]);
-		xl ^= self.f(xr + self.k[5]);
-		xr ^= self.f(xl + self.k[6]);
-		xl ^= self.f(xr + self.k[7]);
+		xr ^= self.f(xl.wrapping_add(self.k[0]));
+		xl ^= self.f(xr.wrapping_add(self.k[1]));
+		xr ^= self.f(xl.wrapping_add(self.k[2]));
+		xl ^= self.f(xr.wrapping_add(self.k[3]));
+		xr ^= self.f(xl.wrapping_add(self.k[4]));
+		xl ^= self.f(xr.wrapping_add(self.k[5]));
+		xr ^= self.f(xl.wrapping_add(self.k[6]));
+		xl ^= self.f(xr.wrapping_add(self.k[7]));
 
-		xr ^= self.f(xl + self.k[7]);
-		xl ^= self.f(xr + self.k[6]);
-		xr ^= self.f(xl + self.k[5]);
-		xl ^= self.f(xr + self.k[4]);
-		xr ^= self.f(xl + self.k[3]);
-		xl ^= self.f(xr + self.k[2]);
-		xr ^= self.f(xl + self.k[1]);
-		xl ^= self.f(xr + self.k[0]);
+		xr ^= self.f(xl.wrapping_add(self.k[7]));
+		xl ^= self.f(xr.wrapping_add(self.k[6]));
+		xr ^= self.f(xl.wrapping_add(self.k[5]));
+		xl ^= self.f(xr.wrapping_add(self.k[4]));
+		xr ^= self.f(xl.wrapping_add(self.k[3]));
+		xl ^= self.f(xr.wrapping_add(self.k[2]));
+		xr ^= self.f(xl.wrapping_add(self.k[1]));
+		xl ^= self.f(xr.wrapping_add(self.k[0]));
 
 		(xr, xl)
 	}
@@ -250,59 +250,61 @@ impl Gost {
 		self.decrypt_2u32(x.0, x.1)
 	}
 	
-	#[inline]
+	// #[inline]
 	pub fn decrypt_2u32(&self, mut xl: u32, mut xr: u32) -> (u32, u32) {
-		xr ^= self.f(xl + self.k[0]);
-		xl ^= self.f(xr + self.k[1]);
-		xr ^= self.f(xl + self.k[2]);
-		xl ^= self.f(xr + self.k[3]);
-		xr ^= self.f(xl + self.k[4]);
-		xl ^= self.f(xr + self.k[5]);
-		xr ^= self.f(xl + self.k[6]);
-		xl ^= self.f(xr + self.k[7]);
+		xr ^= self.f(xl.wrapping_add(self.k[0]));
+		xl ^= self.f(xr.wrapping_add(self.k[1]));
+		xr ^= self.f(xl.wrapping_add(self.k[2]));
+		xl ^= self.f(xr.wrapping_add(self.k[3]));
+		xr ^= self.f(xl.wrapping_add(self.k[4]));
+		xl ^= self.f(xr.wrapping_add(self.k[5]));
+		xr ^= self.f(xl.wrapping_add(self.k[6]));
+		xl ^= self.f(xr.wrapping_add(self.k[7]));
 
-		xr ^= self.f(xl + self.k[7]);
-		xl ^= self.f(xr + self.k[6]);
-		xr ^= self.f(xl + self.k[5]);
-		xl ^= self.f(xr + self.k[4]);
-		xr ^= self.f(xl + self.k[3]);
-		xl ^= self.f(xr + self.k[2]);
-		xr ^= self.f(xl + self.k[1]);
-		xl ^= self.f(xr + self.k[0]);
+		xr ^= self.f(xl.wrapping_add(self.k[7]));
+		xl ^= self.f(xr.wrapping_add(self.k[6]));
+		xr ^= self.f(xl.wrapping_add(self.k[5]));
+		xl ^= self.f(xr.wrapping_add(self.k[4]));
+		xr ^= self.f(xl.wrapping_add(self.k[3]));
+		xl ^= self.f(xr.wrapping_add(self.k[2]));
+		xr ^= self.f(xl.wrapping_add(self.k[1]));
+		xl ^= self.f(xr.wrapping_add(self.k[0]));
 
-		xr ^= self.f(xl + self.k[7]);
-		xl ^= self.f(xr + self.k[6]);
-		xr ^= self.f(xl + self.k[5]);
-		xl ^= self.f(xr + self.k[4]);
-		xr ^= self.f(xl + self.k[3]);
-		xl ^= self.f(xr + self.k[2]);
-		xr ^= self.f(xl + self.k[1]);
-		xl ^= self.f(xr + self.k[0]);
+		xr ^= self.f(xl.wrapping_add(self.k[7]));
+		xl ^= self.f(xr.wrapping_add(self.k[6]));
+		xr ^= self.f(xl.wrapping_add(self.k[5]));
+		xl ^= self.f(xr.wrapping_add(self.k[4]));
+		xr ^= self.f(xl.wrapping_add(self.k[3]));
+		xl ^= self.f(xr.wrapping_add(self.k[2]));
+		xr ^= self.f(xl.wrapping_add(self.k[1]));
+		xl ^= self.f(xr.wrapping_add(self.k[0]));
 
-		xr ^= self.f(xl + self.k[7]);
-		xl ^= self.f(xr + self.k[6]);
-		xr ^= self.f(xl + self.k[5]);
-		xl ^= self.f(xr + self.k[4]);
-		xr ^= self.f(xl + self.k[3]);
-		xl ^= self.f(xr + self.k[2]);
-		xr ^= self.f(xl + self.k[1]);
-		xl ^= self.f(xr + self.k[0]);
+		xr ^= self.f(xl.wrapping_add(self.k[7]));
+		xl ^= self.f(xr.wrapping_add(self.k[6]));
+		xr ^= self.f(xl.wrapping_add(self.k[5]));
+		xl ^= self.f(xr.wrapping_add(self.k[4]));
+		xr ^= self.f(xl.wrapping_add(self.k[3]));
+		xl ^= self.f(xr.wrapping_add(self.k[2]));
+		xr ^= self.f(xl.wrapping_add(self.k[1]));
+		xl ^= self.f(xr.wrapping_add(self.k[0]));
 
 		(xr, xl)
 	}
 
 	fn f(&self, x: u32) -> u32 {
-		let i0 = (x >> 24) & 0xff;
-		let i1 = (x >> 16) & 0xff;
-		let i2 = (x >>  8) & 0xff;
+		let i0 = x.wrapping_shr(24) & 0xff;
+		let i1 = x.wrapping_shr(16) & 0xff;
+		let i2 = x.wrapping_shr(8) & 0xff;
 		let i3 = x & 0xff;
 		
-		let w0 = (self.k87[i0 as usize] as u32) << 24;
-		let w1 = (self.k65[i1 as usize] as u32) << 16;
-		let w2 = (self.k43[i2 as usize] as u32) << 8;
+		let w0 = (self.k87[i0 as usize] as u32).wrapping_shl(24);
+		let w1 = (self.k65[i1 as usize] as u32).wrapping_shl(16);
+		let w2 = (self.k43[i2 as usize] as u32).wrapping_shl(8);
 		let w3 = self.k21[i3 as usize] as u32;
+		
+		
 		let x = w0 | w1 | w2 | w3;
-		(x << 11) | (x >> (32 - 11))
+		x.wrapping_shl(11) | x.wrapping_shr(32 - 11)
 	}
 }
 
@@ -395,6 +397,7 @@ mod tests {
 	#[test]
 	fn test_gost_cbc_iv() {
 		let key = vec![0u8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0];
+		let iv = vec![0xf8u8, 0xa4, 0x9e, 0x45, 0x40, 0xa5, 0x65, 0xc8];
 		
 		let gt = match new(&key) {
 			Ok(x) => x,
@@ -402,10 +405,10 @@ mod tests {
 		};
 		
 		let plain = "Yamato & Musashi".as_bytes().to_vec();
-		let expected = vec![0x11, 0x97, 0xf2, 0x66, 0x20, 0x6, 0x13, 0x6e, 0xde, 0x63, 0x8a, 0x5e, 0xa8, 0xc4, 0x9d, 0xa7];
+		let expected = vec![0xf8, 0xa4, 0x9e, 0x45, 0x40, 0xa5, 0x65, 0xc8, 0xe3, 0x78, 0x2e, 0x4, 0x30, 0x40, 0x45, 0x7a, 0x5a, 0xbf, 0xe4, 0xc6, 0x9a, 0x53, 0x4f, 0xce];
 		
 		
-		let encrypted = match gt.encrypt_cbc_iv(&plain) {
+		let encrypted = match gt.encrypt_cbc_iv(&plain, &iv) {
 			Ok(x) => x,
 			Err(err) => panic!(err)
 		};
@@ -417,4 +420,29 @@ mod tests {
 		};
 		assert_eq!(decrypted, plain);	
 	}
+	
+	#[test]
+	fn test_gost_cbc() {
+		//let key = vec![0u8, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 7, 0, 0, 0];
+		let key = b"12345678901234567890123456789012";
+		
+		let gt = match new(&key[..]) {
+			Ok(x) => x,
+			Err(err) => panic!(err)
+		};
+		
+		let plain = "Yamato & Musashi".as_bytes().to_vec();
+		
+		let encrypted = match gt.encrypt_cbc(&plain) {
+			Ok(x) => x,
+			Err(err) => panic!(err)
+		};
+		
+		let decrypted = match gt.decrypt_cbc(&encrypted) {
+			Ok(x) => x,
+			Err(err) => panic!(err)
+		};
+		assert_eq!(decrypted, plain);	
+	}
+	
 }
