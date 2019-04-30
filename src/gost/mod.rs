@@ -91,13 +91,13 @@ impl Gost {
 		let mut cipher = {
 			let mut buffer = Vec::new();
 			buffer.resize(nbytes + BLOCK_SIZE, 0);
-         buffer[0..BLOCK_SIZE].copy_from_slice(&iv);
+         buffer[0..BLOCK_SIZE].copy_from_slice(iv);
 			buffer
 		};
 		
 		let mut i = 0usize;
-		let mut x = bytes2block(&cipher[..]); // get values from iv
-
+		let mut x = bytes2block(iv);
+		
 		while i < nbytes {
 			let t = bytes2block(&plain[i..]);
 			x = self.encrypt_2u32(t.0 ^ x.0, t.1 ^ x.1);

@@ -132,7 +132,7 @@ impl Blowfish {
 		let mut cipher = {
 			let mut buffer = Vec::new();
 			buffer.resize(nbytes + BLOCK_SIZE, 0);
-         buffer[0..BLOCK_SIZE].copy_from_slice(&iv);
+         buffer[0..BLOCK_SIZE].copy_from_slice(iv);
 			buffer
 		};
 		

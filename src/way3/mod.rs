@@ -26,6 +26,81 @@ pub fn new(key: &[u8]) -> Result<Way3, String> {
 
 
 impl Way3 {
+	
+	/// encrypts 'input' in CBC mode using 'iv'.
+	pub fn encrypt_cbc_iv(&self, input: &Vec<u8>, iv: &Vec<u8>) -> Result<Vec<u8>, String> {
+		// handle caller mistakes
+		if iv.len() != BLOCK_SIZE { return Err("invalid iv size".to_string()) }
+		if input.len() == 0 { return Err("nothing to encrypt".to_string()) }
+		
+		// create plain text buffer from 'input',
+		// with padding if needed
+		let plain = {
+         let mut buffer: Vec<u8> = Vec::new();
+         buffer.extend(input);
+         let n = buffer.len() % BLOCK_SIZE;
+         if n != 0 {
+            buffer.extend(padding(BLOCK_SIZE - n));
+         }
+         buffer
+		};
+      let nbytes = plain.len();
+		
+		// create cipher text buffer
+		// the first block initialised with 'iv' content
+		let mut cipher = {
+			let mut buffer = Vec::new();
+			buffer.resize(nbytes + BLOCK_SIZE, 0);
+         buffer[0..BLOCK_SIZE].copy_from_slice(iv);
+			buffer
+		};
+		
+		let mut i = 0usize;
+		let mut c = bytes3block(iv);
+		while i < nbytes {
+			let t = bytes3block(&plain[i..]);
+			c = self.encrypt((t.0 ^ c.0, t.1 ^ c.1, t.2 ^ c.2));
+			block3bytes(c, &mut cipher[(i + BLOCK_SIZE)..]);
+			i += BLOCK_SIZE;
+		}
+		
+		Ok(cipher)
+	}
+	
+	/// decrypts 'cipher' in CBC mode
+	pub fn decrypt_cbc(&self, cipher: &Vec<u8>) -> Result<Vec<u8>, String> {
+ 		let nbytes = cipher.len();
+		if nbytes <= BLOCK_SIZE { return  Err("cipher data size is to short".to_string()) }
+		if (nbytes % BLOCK_SIZE) != 0 { return Err("cipher data size is wrong".to_string()) }
+		
+		let mut plain: Vec<u8> = Vec::new();
+      plain.resize(nbytes - BLOCK_SIZE, 0);
+		
+		
+		let mut p = bytes3block(&cipher[..]);
+		let mut i = BLOCK_SIZE;
+		while i < nbytes {
+			let a = bytes3block(&cipher[i..]);
+			let t = a;
+			let c = self.decrypt(a);
+			block3bytes((c.0 ^ p.0, c.1 ^ p.1, c.2 ^ p.2), &mut plain[(i - BLOCK_SIZE)..]);
+			p = t;
+			i += BLOCK_SIZE;
+		}
+		
+		match padding_index(&plain) {
+			Some(idx) => {
+            let retv = plain[..idx].to_vec();
+				Ok(retv)
+			},
+			_ => {
+				Ok(plain)
+			}
+		}
+	}
+	
+	
+	
 	pub fn encrypt_ecb(&self, input: &Vec<u8>) -> Result<Vec<u8>, String> {
 		if input.len() == 0 { return Err("plain text size is 0".to_string()) }
 		
@@ -178,6 +253,35 @@ mod tests {
 		};
 
 		let decrypted = match w3.decrypt_ecb(&encrypted) {
+			Ok(x) => x,
+			Err(err) => panic!(err)
+		};
+		assert_eq!(decrypted, plain);	
+		
+	}
+
+	#[test]
+	fn test_cbc_iv() {
+		let key = vec![0x5eu8, 0x5b, 0xf0, 0xd2, 0x38, 0x41, 0x14, 0xd6, 0xcd, 0x20, 0xb9, 0xca];
+		let iv = b"123456789012".to_vec();
+		let expected = vec![0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32,
+								  0xf2, 0x33, 0x56, 0x75, 0x26, 0xd9, 0xa0, 0xd4, 0x9d, 0x73, 0x8d, 0x51,
+								  0x42, 0x26, 0x10, 0x6e, 0x2d, 0xfb, 0xef, 0xc5, 0x68, 0x27, 0x99, 0x48,
+								  0xc1, 0x10, 0xa3, 0x18, 0xdf, 0x23, 0xda, 0xff, 0xd5, 0xbc, 0x3a, 0x6d,
+								  0xd4, 0xd0, 0xa8, 0x73, 0x4c, 0xe, 0xb3, 0x44, 0xa0, 0x44, 0x9f, 0x89,
+								  0x78, 0xe1, 0xf2, 0x56, 0xf1, 0x38, 0xc8, 0x28, 0x7a, 0x5, 0x3a, 0x3a];
+		
+		let w3 = new(&key).unwrap();
+		
+		let plain = "Artur, Błazej, Jolanta, Piotr Pszczółkowski".as_bytes().to_vec();
+		
+		let encrypted = match w3.encrypt_cbc_iv(&plain, &iv) {
+			Ok(x) => x,
+			Err(err) => panic!(err)
+		};
+		assert_eq!(encrypted, expected);
+
+		let decrypted = match w3.decrypt_cbc(&encrypted) {
 			Ok(x) => x,
 			Err(err) => panic!(err)
 		};
