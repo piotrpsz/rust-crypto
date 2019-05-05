@@ -1,4 +1,8 @@
 /*
+* Module: 3way
+* Autor: Piotr Pszczółkowski (piotr@beesoft.pl)
+* Date: 5/05/2019
+*
 * Copyright (c) 2019, Piotr Pszczółkowski
 * All rights reserved.
 * 

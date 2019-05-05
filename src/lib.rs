@@ -28,6 +28,7 @@ extern crate rand;
 
 
 pub mod blowfish;
+pub mod twofish;
 pub mod gost;
 pub mod way3;
 
