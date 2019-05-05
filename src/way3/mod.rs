@@ -1,5 +1,32 @@
+/*
+* Copyright (c) 2019, Piotr Pszczółkowski
+* All rights reserved.
+* 
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions are met:
+*
+* 1. Redistributions of source code must retain the above copyright notice, this
+*    list of conditions and the following disclaimer.
+*
+* 2. Redistributions in binary form must reproduce the above copyright notice,
+*    this list of conditions and the following disclaimer in the documentation
+*    and/or other materials provided with the distribution.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+* FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+* SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+* CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
 use padding;
 use padding_index;
+use rand::Rng;
 
 const KEY_SIZE: usize = 12;
 const BLOCK_SIZE: usize = 12;
@@ -12,6 +39,7 @@ pub struct Way3 {
 	ki: (u32, u32, u32),
 }
 
+/// Creates new Way3 object initialised with passed 'key'.
 pub fn new(key: &[u8]) -> Result<Way3, String> {
 	if key.len() != KEY_SIZE {
 		return Err("invalid key size".to_string())
@@ -26,6 +54,15 @@ pub fn new(key: &[u8]) -> Result<Way3, String> {
 
 
 impl Way3 {
+	
+	/// encrypts 'input' in CBC mode random generated iv.
+	pub fn encrypt_cbc(&self, input: &Vec<u8>) -> Result<Vec<u8>, String> {
+		self.encrypt_cbc_iv(input, {
+			let mut buffer = [0u8; BLOCK_SIZE];
+			rand::thread_rng().fill(&mut buffer);
+			&buffer.to_vec()
+		})
+	}
 	
 	/// encrypts 'input' in CBC mode using 'iv'.
 	pub fn encrypt_cbc_iv(&self, input: &Vec<u8>, iv: &Vec<u8>) -> Result<Vec<u8>, String> {
@@ -264,12 +301,12 @@ mod tests {
 	fn test_cbc_iv() {
 		let key = vec![0x5eu8, 0x5b, 0xf0, 0xd2, 0x38, 0x41, 0x14, 0xd6, 0xcd, 0x20, 0xb9, 0xca];
 		let iv = b"123456789012".to_vec();
-		let expected = vec![0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32,
-								  0xf2, 0x33, 0x56, 0x75, 0x26, 0xd9, 0xa0, 0xd4, 0x9d, 0x73, 0x8d, 0x51,
-								  0x42, 0x26, 0x10, 0x6e, 0x2d, 0xfb, 0xef, 0xc5, 0x68, 0x27, 0x99, 0x48,
-								  0xc1, 0x10, 0xa3, 0x18, 0xdf, 0x23, 0xda, 0xff, 0xd5, 0xbc, 0x3a, 0x6d,
-								  0xd4, 0xd0, 0xa8, 0x73, 0x4c, 0xe, 0xb3, 0x44, 0xa0, 0x44, 0x9f, 0x89,
-								  0x78, 0xe1, 0xf2, 0x56, 0xf1, 0x38, 0xc8, 0x28, 0x7a, 0x5, 0x3a, 0x3a];
+		let expected = vec![0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31,
+		                    0x32, 0xf2, 0x33, 0x56, 0x75, 0x26, 0xd9, 0xa0, 0xd4, 0x9d, 0x73,
+								  0x8d, 0x51, 0x42, 0x26, 0x10, 0x6e, 0x2d, 0xfb, 0xef, 0xc5, 0x68,
+								  0x27, 0x99, 0x48, 0x5b, 0xb5, 0x8, 0xc6, 0xd7, 0xdc, 0xbc, 0x27,
+								  0xfa, 0xa7, 0x2f, 0x96, 0xfc, 0xae, 0x35, 0xe4, 0xf9, 0x65, 0xb5,
+								  0x9e, 0x41, 0x11, 0x6e, 0xcf];
 		
 		let w3 = new(&key).unwrap();
 		
@@ -286,6 +323,25 @@ mod tests {
 			Err(err) => panic!(err)
 		};
 		assert_eq!(decrypted, plain);	
+	}
+	
+	#[test]
+	fn test_cbc() {
+		let key = vec![0x5eu8, 0x5b, 0xf0, 0xd2, 0x38, 0x41, 0x14, 0xd6, 0xcd, 0x20, 0xb9, 0xca];
+		let w3 = new(&key).unwrap();
+		let plain = b"Yamato & Musashi".to_vec();
+
+		match w3.encrypt_cbc(&plain) {
+			Ok(encrypted) => {
+				match w3.decrypt_cbc(&encrypted) {
+					Ok(decrypted) => {
+						assert_eq!(decrypted, plain);
+					},
+					Err(err) => panic!(err)
+				}
+			},
+			Err(err) => panic!(err)
+		};
 		
 	}
 }
